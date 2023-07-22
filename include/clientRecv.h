@@ -4,8 +4,8 @@
 #include "common.h"
 #include "stdio.h"
 
-#define HeadP   0x55AA
-#define TailP   0xAA55
+extern WiFiClient client; //声明一个ESP32客户端对象，用于与服务器进行连接
+extern WiFiServer server; //声明服务器对象
 
 typedef struct{
     uint8_t id;
@@ -19,8 +19,8 @@ typedef enum{
     DATA_HANDLE
 }RECV_STAGE_E;
 
-int8_t RecvData(WiFiServer* server);
-void dataHandle(void);
 int8_t RecvAscillData(WiFiServer* server);
+void clientInit(void);
+
 
 #endif

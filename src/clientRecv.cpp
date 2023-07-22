@@ -1,124 +1,49 @@
 #include "clientRecv.h"
 
+const char *ssid = "2-517"; //wifi名
+const char *password = "11111111";//wifi密码
 
-uint8_t recvBuf[200] = {0};
-uint16_t recvIndex = 0;
-uint8_t frameData[200] = {0};
-uint16_t frameIndex = 0;
-framme_t frame;
-/*
-    包头        55AA
-    长度        xx
-    数据{
+IPAddress serverIP(192,168,2,100); //欲访问的服务端IP地址
+IPAddress gateway(192, 168, 2, 1);
+IPAddress subnet(255, 255, 255, 0);
+IPAddress dns(192, 168, 2,1);
+uint16_t serverPort = 8080;         //服务端口号
 
-    }
-    crc         xx
-    包尾        AA55
-*/
+WiFiClient client; //声明一个ESP32客户端对象，用于与服务器进行连接
+WiFiServer server; //声明服务器对象
 
-/*
-    数据段
-    {
-    id          xx
-    }
-*/
-
-/* 解析收到的数据
-data 数据源
-length 数据总长度
-usefulData 有效数据
-*/
-void dataHandle(void)
+void clientInit(void)
 {
-    if(frameIndex)
-    {
-        memcpy(&frame,frameData,frameIndex);
-        Serial.printf("frame length %x\r\n",frameIndex);
-        for(int i=0; i<frameIndex; i++)
-            Serial.printf("%x ",frameData[i]);
-        Serial.printf("\r\n");
-        Serial.printf("id %x\r\n",frame.id);
-        Serial.printf("code %x\r\n",frame.code);
-
-        if(frameData[0] == 1)
-            motorstart();
-
-        memset(frameData,0,200);
-        frameIndex = 0;
+    WiFi.mode(WIFI_STA);
+    // WiFi.setSleep(false); //关闭STA模式下wifi休眠，提高响应速度
+    
+    if (WiFi.config(serverIP, gateway, subnet, dns, dns) == false) {
+        Serial.println("Configuration failed.");
     }
-}
 
-int8_t packetRecv(uint8_t* data,uint16_t length,uint8_t* usefulData)
-{
-    uint8_t crc = 0;
-    uint8_t frameLength = 0;
-    if((data[0] == 0x55) && (data[1] == 0xAA))
+    WiFi.begin(ssid, password);
+    
+    while (WiFi.status() != WL_CONNECTED)
     {
-        crc = CheckSum(data,length-3);
-        // Serial.printf("crc: %x\r\n",crc);
-        // Serial.printf("framecrc: %x\r\n",data[length-3]);
-        if(crc == data[length-3])
-        {
-            frameIndex = data[2];
-            memcpy(frameData,&data[3],frameIndex);
-        
-            for(int i=0; i<length; i++)
-                Serial.printf("%x ",data[i]);
-            Serial.printf("\r\n");
-            
-            return 1;
-        }else{
-            return -1;
-        }
+        delay(500);
+        Serial.print(".");
     }
-    return 0;
-}
+    Serial.println("Connected");
+    Serial.print("IP Address:");
+    Serial.println(WiFi.localIP());
+    server.begin(8080);
 
-int8_t RecvData(WiFiServer* server)
-{
-    WiFiClient client = server->available(); //尝试建立客户对象
-    if (client) //如果当前客户可用
-    {
-        Serial.println("[Client connected]");
-        String readBuff;
-        while (client.connected()) //如果客户端处于连接状态
-        {
-            if (client.available()) //如果有可读数据
-            {
-                uint8_t c = client.read(); //读取一个字节
-                                        //也可以用readLine()等其他方法
-                recvBuf[recvIndex] = c;
-                recvIndex++;
-                Serial.printf("c: %x\r\n",c); //从串口打印
-                Serial.printf("recvIndex: %d\r\n",recvIndex); //从串口打印
-                if((recvBuf[recvIndex-1] == 0x55) && (recvBuf[recvIndex-2] == 0xAA)) 
-                {
-                    // client.print("Received: " + readBuff); //向客户端发送
-                    // Serial.println("Received: " + readBuff); //从串口打印
-                    client.printf("get a frame\r\n");
-                    if(packetRecv(recvBuf,recvIndex,frameData) == 1)
-                    {
-                        dataHandle();
-                        memset(recvBuf,0,recvIndex);
-                        recvIndex = 0;
-                    }
-
-                }
-            }
-        }
-        // client.stop(); //结束当前连接:
-        // Serial.println("[Client disconnected]");
-    }
-    return 0;
 }
 
 void recvHandle(String recvdata)
 {
     if(recvdata == "opendoor\r")
     {
+        motorstart(1000,1);
         Serial.print("open the door\r\n");
     }else if(recvdata == "closedoor\r")
     {
+        motorstart(1000,2);
         Serial.print("close the door\r\n");
     }
 }
@@ -142,8 +67,6 @@ int8_t RecvAscillData(WiFiServer* server)
 
             }
         }
-        // client.stop(); //结束当前连接:
-        // Serial.println("[Client disconnected]");
     }
     return 0;
 }

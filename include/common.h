@@ -3,6 +3,7 @@
 
 #include "stdio.h"
 #include "string.h"
+#include "stdint.h"
 #include <WiFi.h>
 #include "clientRecv.h"
 #include "motorCtrl.h"
